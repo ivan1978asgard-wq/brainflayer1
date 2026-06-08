@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <fcntl.h>
 #include <errno.h>
+#include <ctype.h>
 
 #include <openssl/sha.h>
 
@@ -245,6 +246,22 @@ static int rawpriv2priv(unsigned char *priv, unsigned char *rawpriv, size_t rawp
   return 0;
 }
 
+static int normalize_hex_secexp(unsigned char *dst, unsigned char *src, size_t src_sz) {
+  size_t i;
+  if (src_sz == 0 || src_sz > 64) {
+    return 1;
+  }
+  for (i = 0; i < src_sz; ++i) {
+    if (!isxdigit(src[i])) {
+      return 2;
+    }
+  }
+  memset(dst, '0', 64);
+  memcpy(dst + 64 - src_sz, src, src_sz);
+  dst[64] = '\0';
+  return 0;
+}
+
 static unsigned char *kdfsalt;
 static size_t kdfsalt_sz;
 
@@ -378,6 +395,8 @@ void usage(unsigned char *name) {
                              camp2  - keccak256 * 2031 (new ethercamp)\n\
 							               shaxn  - N rounds of SHA-256\n\
  -x                          treat input as hex encoded\n\
+ -X                          treat input as hex secret exponent, left-pad\n\
+                             with zeros up to 64 chars and use directly\n\
  -s SALT                     use SALT for salted input types (default: none)\n\
  -p PASSPHRASE               use PASSPHRASE for salted input types, inputs\n\
                              will be treated as salts\n\
@@ -419,7 +438,7 @@ int main(int argc, char **argv) {
 
   unsigned char modestr[64];
 
-  int spok = 0, aopt = 0, boptn = 0, vopt = 0, wopt = 19, xopt = 0;
+  int spok = 0, aopt = 0, boptn = 0, vopt = 0, wopt = 19, xopt = 0, Xopt = 0;
   int nopt_mod = 0, nopt_rem = 0, Bopt = 0, Copt = 0, Nopt = 2;
   uint64_t kopt = 0;
   unsigned char *bopts[BOPT_MAX];
@@ -440,7 +459,7 @@ int main(int argc, char **argv) {
   unsigned char batch_priv[BATCH_MAX][32];
   unsigned char batch_upub[BATCH_MAX][65];
 
-  while ((c = getopt(argc, argv, "avxb:hi:k:f:m:n:o:p:s:r:c:t:w:CI:B:N:")) != -1) {
+  while ((c = getopt(argc, argv, "avxXb:hi:k:f:m:n:o:p:s:r:c:t:w:CI:B:N:")) != -1) {
     switch (c) {
       case 'a':
         aopt = 1; // open output file in append mode
@@ -492,6 +511,10 @@ int main(int argc, char **argv) {
         break;
       case 'x':
         xopt = 1; // input is hex encoded
+        break;
+      case 'X':
+        Xopt = 1; // input is direct secret exponent in hex
+        xopt = 1;
         break;
       case 's':
         sopt = optarg; // salt
@@ -590,6 +613,16 @@ int main(int argc, char **argv) {
     unhex(Iopt, sizeof(priv)*2, priv, sizeof(priv));
     skipping = 1;
     if (!nopt_mod) { nopt_mod = 1; };
+  }
+
+  if (Xopt) {
+    if (Iopt) {
+      bail(1, "The '-X' option cannot be combined with '-I'\n");
+    }
+    if (topt && strcmp(topt, "priv") != 0) {
+      bail(1, "The '-X' option supports only input type 'priv'\n");
+    }
+    topt = "priv";
   }
 
 
@@ -802,14 +835,28 @@ int main(int argc, char **argv) {
           }
         }
         if (xopt) {
-          if (batch_line_read[i] / 2 > unhexed_sz) {
-            unhexed_sz = batch_line_read[i];
-            unhexed = chkrealloc(unhexed, unhexed_sz);
-          }
-          // rewrite the input line from hex
-          unhex(batch_line[i], batch_line_read[i], unhexed, unhexed_sz);
-          if (input2priv(batch_priv[i], unhexed, batch_line_read[i]/2) != 0) {
-            fprintf(stderr, "input2priv failed! continuing...\n");
+          if (Xopt) {
+            unsigned char padded_hex[65];
+            ret = normalize_hex_secexp(padded_hex, (unsigned char *)batch_line[i], batch_line_read[i]);
+            if (ret != 0) {
+              fprintf(stderr, "invalid hex secret exponent '%s' (must be 1..64 hex chars)\n", batch_line[i]);
+              --i;
+              continue;
+            }
+            unhex(padded_hex, 64, unhexed, 32);
+            if (input2priv(batch_priv[i], unhexed, 32) != 0) {
+              fprintf(stderr, "input2priv failed! continuing...\n");
+            }
+          } else {
+            if (batch_line_read[i] / 2 > unhexed_sz) {
+              unhexed_sz = batch_line_read[i];
+              unhexed = chkrealloc(unhexed, unhexed_sz);
+            }
+            // rewrite the input line from hex
+            unhex(batch_line[i], batch_line_read[i], unhexed, unhexed_sz);
+            if (input2priv(batch_priv[i], unhexed, batch_line_read[i]/2) != 0) {
+              fprintf(stderr, "input2priv failed! continuing...\n");
+            }
           }
         } else {
           if (input2priv(batch_priv[i], batch_line[i], batch_line_read[i]) != 0) {
