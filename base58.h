@@ -81,7 +81,7 @@ static int base58check_decode_hash160(const char *addr, unsigned char *hash160_o
 /*
  * Return a human-readable description of a base58check_decode_hash160 error code.
  */
-static const char *base58_strerror(int err) {
+static inline const char *base58_strerror(int err) {
     switch (err) {
         case -1: return "invalid Base58 character";
         case -2: return "overflow (address too long)";
