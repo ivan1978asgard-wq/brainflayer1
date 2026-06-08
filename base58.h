@@ -6,7 +6,6 @@
 #include <string.h>
 #include <stdint.h>
 #include <openssl/sha.h>
-#include <openssl/evp.h>
 
 /* Base58 alphabet used by Bitcoin */
 static const char b58_alphabet[] =
@@ -80,9 +79,22 @@ static int base58check_decode_hash160(const char *addr, unsigned char *hash160_o
 }
 
 /*
+ * Return a human-readable description of a base58check_decode_hash160 error code.
+ */
+static const char *base58_strerror(int err) {
+    switch (err) {
+        case -1: return "invalid Base58 character";
+        case -2: return "overflow (address too long)";
+        case -3: return "checksum mismatch (invalid address)";
+        default: return "unknown error";
+    }
+}
+
+
+/*
  * Check whether a string looks like a Bitcoin address.
  * A valid address starts with '1' (P2PKH) or '3' (P2SH),
- * contains only Base58 characters, and has length 25–34.
+ * contains only Base58 characters, and has length 25-34.
  * Returns 1 if it looks like an address, 0 otherwise.
  */
 static int is_bitcoin_address(const char *s) {
