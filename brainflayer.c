@@ -252,7 +252,7 @@ static int normalize_hex_secexp(unsigned char *dst, unsigned char *src, size_t s
     return 1;
   }
   for (i = 0; i < src_sz; ++i) {
-    if (!isxdigit(src[i])) {
+    if (!isxdigit((unsigned char)src[i])) {
       return 2;
     }
   }
