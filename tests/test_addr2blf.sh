@@ -124,7 +124,7 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# TEST 7: invalid/unrecognised lines are skipped with a warning
+# TEST 7: invalid/unrecognised lines are skipped silently
 # ---------------------------------------------------------------------------
 BLF7="$TMPDIR_TEST/test7.blf"
 INPUT7="$TMPDIR_TEST/input7.txt"
@@ -134,10 +134,10 @@ OUTPUT7=$("$HEX2BLF" "$INPUT7" "$BLF7" 2>&1)
 LOADED=$(echo "$OUTPUT7" | grep -oP 'Loaded \K[0-9]+')
 SKIPPED=$(echo "$OUTPUT7" | grep -oP 'skipped \K[0-9]+')
 
-if [ "$LOADED" = "2" ] && [ "$SKIPPED" = "1" ]; then
-  pass "TEST 7: hex2blf skips invalid lines and reports count"
+if [ "$LOADED" = "2" ] && [ "$SKIPPED" = "1" ] && ! echo "$OUTPUT7" | grep -q "Unrecognised line"; then
+  pass "TEST 7: hex2blf skips invalid lines silently and reports count"
 else
-  fail "TEST 7: expected Loaded=2 skipped=1, got Loaded=$LOADED skipped=$SKIPPED"
+  fail "TEST 7: expected silent skip with Loaded=2 skipped=1, got Loaded=$LOADED skipped=$SKIPPED"
 fi
 
 # ---------------------------------------------------------------------------

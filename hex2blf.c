@@ -121,13 +121,9 @@ int main(int argc, char **argv) {
         bloom_set_hash160(bloom, hash.ul);
         ++line_ct;
       } else {
-        fprintf(stderr, "\n[!] Invalid Bitcoin address on line %zu: '%s' (%s) — skipping\n",
-                line_ct + skip_ct + 1, trimmed, base58_strerror(ret));
         ++skip_ct;
       }
     } else {
-      fprintf(stderr, "\n[!] Unrecognised line %zu: '%s' — skipping\n",
-              line_ct + skip_ct + 1, trimmed);
       ++skip_ct;
     }
 
