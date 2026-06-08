@@ -121,6 +121,7 @@ int main(int argc, char **argv) {
         bloom_set_hash160(bloom, hash.ul);
         ++line_ct;
       } else {
+        (void)base58_strerror(ret);
         ++skip_ct;
       }
     } else {
