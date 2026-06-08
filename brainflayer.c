@@ -839,7 +839,6 @@ int main(int argc, char **argv) {
             unsigned char padded_hex[65];
             ret = normalize_hex_secexp(padded_hex, (unsigned char *)batch_line[i], batch_line_read[i]);
             if (ret != 0) {
-              fprintf(stderr, "invalid hex secret exponent '%s' (must be 1..64 hex chars)\n", batch_line[i]);
               --i;
               continue;
             }
